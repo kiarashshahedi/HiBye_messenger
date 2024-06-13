@@ -1,0 +1,20 @@
+<!-- templates/transactions.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="my-4">Transactions</h1>
+<ul class="list-group mt-3">
+    {% for transaction in transactions %}
+
+    <li class="list-group-item">
+        {{ transaction.amount }} - {{ transaction.timestamp }}
+    </li>
+    
+    {% empty %}
+
+    <li class="list-group-item">No transactions found.</li>
+
+    {% endfor %}
+    
+</ul>
+{% endblock %}

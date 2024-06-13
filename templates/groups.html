@@ -1,0 +1,32 @@
+<!-- templates/groups.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="my-4">Groups</h1>
+
+<!-- Create Group Form -->
+<div class="card mb-4">
+    <div class="card-header">Create New Group</div>
+    <div class="card-body">
+        <form method="post" action="{% url 'create_group' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="groupName">Group Name</label>
+                <input type="text" class="form-control" id="groupName" name="name" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Group</button>
+        </form>
+    </div>
+</div>
+
+<!-- List of Groups -->
+<h1>Groups</h1>
+<a class="btn btn-primary" href="{% url 'create_group' %}">Create Group</a>
+<ul class="list-group mt-3">
+    {% for group in groups %}
+    <li class="list-group-item">
+        <a href="{% url 'group_detail' group.id %}">{{ group.name }}</a>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

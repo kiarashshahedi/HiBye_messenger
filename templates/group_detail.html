@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>{{ group.name }}</h1>
+<p>{{ group.description }}</p>
+{% if request.user not in group.members.all %}
+<form action="{% url 'join_group' group.id %}" method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Join Group</button>
+</form>
+{% else %}
+<div id="chat-log">
+    {% for message in messages %}
+    <div>
+        <strong>{{ message.user.username }}:</strong>
+        {% if message.content %}
+            {{ message.content }}
+        {% elif message.image %}
+            <img src="{{ message.image.url }}" alt="Image" width="200">
+        {% elif message.audio %}
+            <audio controls>
+                <source src="{{ message.audio.url }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+<form id="chat-message-form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="text" id="chat-message-input" autocomplete="off" placeholder="Type a message...">
+    <input type="file" id="chat-file-input" accept="image/*,audio/*">
+    <button type="submit">Send</button>
+</form>
+{% endif %}
+<script>
+    const groupID = "{{ group.id }}";
+    const chatSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/chat/' + groupID + '/'
+    );
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const message = data.message;
+        const username = data.username;
+        const messageType = data.message_type;
+
+        const chatLog = document.getElementById('chat-log');
+        const messageElement = document.createElement('div');
+        
+        if (messageType === 'text') {
+            messageElement.innerHTML = `<strong>${username}:</strong> ${message}`;
+        } else if (messageType === 'image') {
+            messageElement.innerHTML = `<strong>${username}:</strong> <img src="${message}" alt="Image" width="200">`;
+        } else if (messageType === 'audio') {
+            messageElement.innerHTML = `<strong>${username}:</strong> <audio controls><source src="${message}" type="audio/mpeg">Your browser does not support the audio element.</audio>`;
+        }
+
+        chatLog.appendChild(messageElement);
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    document.getElementById('chat-message-form').onsubmit = function(e) {
+        e.preventDefault();
+        const messageInput = document.getElementById('chat-message-input');
+        const fileInput = document.getElementById('chat-file-input');
+        const message = messageInput.value;
+        const file = fileInput.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataURL = e.target.result;
+                if (file.type.startsWith('image/')) {
+                    chatSocket.send(JSON.stringify({
+                        'image': dataURL,
+                        'username': "{{ request.user.username }}"
+                    }));
+                } else if (file.type.startsWith('audio/')) {
+                    chatSocket.send(JSON.stringify({
+                        'audio': dataURL,
+                        'username': "{{ request.user.username }}"
+                    }));
+                }
+            };
+            reader.readAsDataURL(file);
+        } else {
+            chatSocket.send(JSON.stringify({
+                'message': message,
+                'username': "{{ request.user.username }}"
+            }));
+        }
+
+        messageInput.value = '';
+        fileInput.value = '';
+    };
+</script>
+{% endblock %}

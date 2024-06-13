@@ -1,0 +1,30 @@
+<!-- templates/private_chat.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="my-4">Private Chat Requests</h1>
+
+<!-- List of Private Chat Requests -->
+<ul class="list-group">
+    {% for request in requests %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ request.sender.username }} wants to chat with you.
+        <a href="{% url 'accept_request' request.id %}" class="btn btn-success btn-sm">Accept</a>
+        <a href="{% url 'decline_request' request.id %}" class="btn btn-danger btn-sm">Decline</a>
+
+        {% comment %} <div>
+            <form method="post" action="{% url 'accept_request' request.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm">Accept</button>
+            </form>
+            <form method="post" action="{% url 'decline_request' request.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">Decline</button>
+            </form>
+        </div> {% endcomment %}
+    </li>
+    {% empty %}
+    <li class="list-group-item">No private chat requests found.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
