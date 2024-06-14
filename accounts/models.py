@@ -24,6 +24,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=255, unique=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    coins = models.IntegerField(default=50)  # Default to 50 coins on registration
 
     objects = CustomUserManager()
 

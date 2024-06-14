@@ -3,6 +3,7 @@ from .models import Group, Message, PrivateChatRequest, PrivateChat
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from .forms import GroupForm, MessageForm, PrivateMessageForm
+from django.contrib import messages
 
 # API
 #from wallet.models import Transaction
@@ -80,12 +81,17 @@ def create_group(request):
     if request.method == 'POST':
         form = GroupForm(request.POST)
         if form.is_valid():
-            group = form.save(commit=False)
-            group.created_by = request.user
-            group.save()
-            group.members.add(request.user)
-            group.save()
-            return redirect('group_detail', group_id=group.id)
+            if request.user.coins >= 1:
+                group = form.save(commit=False)
+                group.created_by = request.user  # Ensure the created_by field is set
+                group.save()
+                group.members.add(request.user)  # Add the creator to the group members
+                request.user.coins -= 1
+                request.user.save()
+                messages.success(request, f'Group created successfully! 1 coin has been deducted. You have {request.user.coins} coins left.')
+                return redirect('group_detail', group_id=group.id)
+            else:
+                messages.error(request, 'You do not have enough coins to create a group.')
     else:
         form = GroupForm()
     return render(request, 'create_group.html', {'form': form})
@@ -95,9 +101,17 @@ def create_group(request):
 @login_required
 def join_group(request, group_id):
     group = get_object_or_404(Group, id=group_id)
-    group.members.add(request.user)
-    return redirect('group_detail', group_id=group.id)
-
+    if request.user.coins >= 1:
+        group.members.add(request.user)
+        request.user.coins -= 1
+        request.user.save()
+        return redirect('group_detail', group_id=group_id)
+    else:
+        messages.error(request, "You do not have enough coins to join this group.")
+        return redirect('groups')
+    
+    
+    
 '''   Privet chats     '''
 
 @login_required
@@ -149,23 +163,28 @@ def private_chat_detail(request, chat_id):
 def handle_private_chat_request(request, request_id, action):
     chat_request = get_object_or_404(PrivateChatRequest, id=request_id)
     if chat_request.receiver != request.user:
-        return redirect('private_chat_requests')
+        return redirect('private_chat_list')
 
     if action == 'accept':
         chat_request.status = 'accepted'
-        chat_request.save()
-        
-        # Create or retrieve the private chat
-        chat, created = PrivateChat.objects.get_or_create()
-        chat.participants.add(chat_request.sender, chat_request.receiver)
-        chat.save()
-        
-        return redirect('private_chat_detail', chat_id=chat.id)
+        chat, created = PrivateChat.objects.get_or_create(participants=request.user)
+        chat.participants.add(chat_request.sender)
+
+        # Deduct coins from both users
+        if chat_request.sender.coins >= 1 and request.user.coins >= 1:
+            chat_request.sender.coins -= 1
+            request.user.coins -= 1
+            chat_request.sender.save()
+            request.user.save()
+        else:
+            messages.error(request, "One of the users does not have enough coins to start a private chat.")
+            return redirect('private_chat_requests')
+
     elif action == 'decline':
         chat_request.status = 'declined'
-        chat_request.save()
 
-    return redirect('private_chat_requests')
+    chat_request.save()
+    return redirect('private_chat_list')
 
 @login_required
 def private_chat_requests(request):

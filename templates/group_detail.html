@@ -43,7 +43,7 @@
 <p>You are not a member of this group.</p>
 <form method="post" action="{% url 'join_group' group.id %}">
     {% csrf_token %}
-    <button type="submit">Join Group</button>
+    <button type="submit">Join Group (1 coin)</button>
 </form>
 {% endif %}
 

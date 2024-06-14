@@ -2,23 +2,22 @@
 
 {% block content %}
 <h1>Private Chat Requests</h1>
-
 <h2>Received Requests</h2>
 <ul>
     {% for request in received_requests %}
         <li>
-            {{ request.sender.username }}
+            From {{ request.sender.username }} ({{ request.status }})
             {% if request.status == 'pending' %}
-                <a href="{% url 'handle_private_chat_request' request.id 'accept' %}">Accept</a>
-                <a href="{% url 'handle_private_chat_request' request.id 'decline' %}">Decline</a>
-            {% elif request.status == 'accepted' %}
-                (Accepted) <a href="{% url 'start_private_chat' request.sender.id %}">Go to Chat</a>
-            {% else %}
-                ({{ request.status }})
+                <form method="post" action="{% url 'handle_private_chat_request' request.id 'accept' %}">
+                    {% csrf_token %}
+                    <button type="submit">Accept (1 coin)</button>
+                </form>
+                <form method="post" action="{% url 'handle_private_chat_request' request.id 'decline' %}">
+                    {% csrf_token %}
+                    <button type="submit">Decline</button>
+                </form>
             {% endif %}
         </li>
-    {% empty %}
-        <li>No received requests.</li>
     {% endfor %}
 </ul>
 
@@ -34,6 +33,10 @@
 </ul>
 
 <h2>Send a New Request</h2>
-<a href="{% url 'send_private_chat_request' %}">Send a New Request</a>
-
+<form method="post" action="{% url 'send_private_chat_request' %}">
+    {% csrf_token %}
+    <label for="username">Username:</label>
+    <input type="text" name="username" id="username" required>
+    <button type="submit">Send Request</button>
+</form>
 {% endblock %}
