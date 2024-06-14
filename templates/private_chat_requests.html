@@ -1,24 +1,39 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Private Chat Requests</h2>
-<h3>Received Requests</h3>
+<h1>Private Chat Requests</h1>
+
+<h2>Received Requests</h2>
 <ul>
     {% for request in received_requests %}
         <li>
-            {{ request.sender }} - {{ request.status }}
+            {{ request.sender.username }}
             {% if request.status == 'pending' %}
                 <a href="{% url 'handle_private_chat_request' request.id 'accept' %}">Accept</a>
                 <a href="{% url 'handle_private_chat_request' request.id 'decline' %}">Decline</a>
+            {% elif request.status == 'accepted' %}
+                (Accepted) <a href="{% url 'start_private_chat' request.sender.id %}">Go to Chat</a>
+            {% else %}
+                ({{ request.status }})
             {% endif %}
         </li>
+    {% empty %}
+        <li>No received requests.</li>
     {% endfor %}
 </ul>
 
-<h3>Sent Requests</h3>
+<h2>Sent Requests</h2>
 <ul>
     {% for request in sent_requests %}
-        <li>{{ request.receiver }} - {{ request.status }}</li>
+        <li>
+            To {{ request.receiver.username }} ({{ request.status }})
+        </li>
+    {% empty %}
+        <li>No sent requests.</li>
     {% endfor %}
 </ul>
+
+<h2>Send a New Request</h2>
+<a href="{% url 'send_private_chat_request' %}">Send a New Request</a>
+
 {% endblock %}

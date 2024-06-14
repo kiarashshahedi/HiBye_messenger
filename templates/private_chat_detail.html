@@ -1,15 +1,24 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Private Chat</h2>
-<div id="chat-log">
+<h1>Chat with {{ other_participant.username }}</h1>
+
+<div>
     {% for message in messages %}
-        <p><strong>{{ message.sender }}:</strong> {{ message.content }}</p>
+        <div>
+            <strong>{{ message.sender.username }}</strong>: {{ message.content }}
+            <br>
+            <small>{{ message.timestamp }}</small>
+        </div>
     {% endfor %}
 </div>
+
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     {{ form.as_p }}
     <button type="submit">Send</button>
 </form>
+
+<a href="{% url 'private_chat_list' %}">Back to Chats</a>
+
 {% endblock %}

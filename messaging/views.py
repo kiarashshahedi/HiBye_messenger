@@ -98,7 +98,7 @@ def join_group(request, group_id):
     group.members.add(request.user)
     return redirect('group_detail', group_id=group.id)
 
-
+'''   Privet chats     '''
 
 @login_required
 def private_chat_list(request):
@@ -111,8 +111,8 @@ def start_private_chat(request, user_id):
     if other_user == request.user:
         return redirect('private_chat_list')
     
-    chat, created = PrivateChat.objects.get_or_create(participants=request.user)
-    chat.participants.add(other_user)
+    chat, created = PrivateChat.objects.get_or_create()
+    chat.participants.add(request.user, other_user)
     
     return redirect('private_chat_detail', chat_id=chat.id)
 
@@ -135,36 +135,37 @@ def private_chat_detail(request, chat_id):
         form = PrivateMessageForm()
 
     messages = chat.messages.order_by('timestamp')
+    other_participant = chat.participants.exclude(id=request.user.id).first()
+
     return render(request, 'private_chat_detail.html', {
         'chat': chat,
         'messages': messages,
         'form': form,
+        'other_participant': other_participant,
     })
 
-@login_required
-def send_private_chat_request(request, user_id):
-    receiver = get_object_or_404(User, id=user_id)
-    if request.user == receiver:
-        return redirect('private_chat_list')
-    
-    PrivateChatRequest.objects.get_or_create(sender=request.user, receiver=receiver)
-    return redirect('private_chat_list')
 
 @login_required
 def handle_private_chat_request(request, request_id, action):
     chat_request = get_object_or_404(PrivateChatRequest, id=request_id)
     if chat_request.receiver != request.user:
-        return redirect('private_chat_list')
+        return redirect('private_chat_requests')
 
     if action == 'accept':
         chat_request.status = 'accepted'
-        chat, created = PrivateChat.objects.get_or_create(participants=request.user)
-        chat.participants.add(chat_request.sender)
+        chat_request.save()
+        
+        # Create or retrieve the private chat
+        chat, created = PrivateChat.objects.get_or_create()
+        chat.participants.add(chat_request.sender, chat_request.receiver)
+        chat.save()
+        
+        return redirect('private_chat_detail', chat_id=chat.id)
     elif action == 'decline':
         chat_request.status = 'declined'
+        chat_request.save()
 
-    chat_request.save()
-    return redirect('private_chat_list')
+    return redirect('private_chat_requests')
 
 @login_required
 def private_chat_requests(request):
@@ -176,13 +177,6 @@ def private_chat_requests(request):
     })
 
 @login_required
-def private_chats(request):
-    chats = PrivateChat.objects.filter(participants=request.user)
-    return render(request, 'private_chats.html', {
-        'chats': chats
-    })
-
-@login_required
 def private_chat(request, chat_id):
     chat = get_object_or_404(PrivateChat, id=chat_id, participants=request.user)
     messages = chat.messages.order_by('timestamp')
@@ -190,12 +184,30 @@ def private_chat(request, chat_id):
         'chat': chat,
         'messages': messages
     })
-
+    
+@login_required
+def send_private_chat_request(request):
+    if request.method == 'POST':
+        receiver_id = request.POST.get('receiver_id')
+        receiver = get_user_model().objects.filter(id=receiver_id).first()
+        if not receiver:
+            return redirect('private_chat_requests')  # or handle the error appropriately
+        PrivateChatRequest.objects.get_or_create(sender=request.user, receiver=receiver)
+        return redirect('private_chat_requests')
+    else:
+        users = get_user_model().objects.exclude(id=request.user.id)
+        return render(request, 'send_private_chat_request.html', {'users': users})
+    
 @login_required
 def accept_request(request, request_id):
     chat_request = get_object_or_404(PrivateChatRequest, id=request_id, receiver=request.user)
     chat_request.status = 'accepted'
     chat_request.save()
+    
+    # Create a private chat if not exists
+    chat, created = PrivateChat.objects.get_or_create()
+    chat.participants.add(chat_request.sender, request.user)
+    
     return redirect('private_chat_requests')
 
 @login_required
