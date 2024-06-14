@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Private Chat Requests</h2>
+<h3>Received Requests</h3>
+<ul>
+    {% for request in received_requests %}
+        <li>
+            {{ request.sender }} - {{ request.status }}
+            {% if request.status == 'pending' %}
+                <a href="{% url 'handle_private_chat_request' request.id 'accept' %}">Accept</a>
+                <a href="{% url 'handle_private_chat_request' request.id 'decline' %}">Decline</a>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+
+<h3>Sent Requests</h3>
+<ul>
+    {% for request in sent_requests %}
+        <li>{{ request.receiver }} - {{ request.status }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}

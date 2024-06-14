@@ -5,6 +5,7 @@
 <h1>{{ group.name }}</h1>
 <p>{{ group.description }}</p>
 
+{% if user in members %}
 <h2>Members</h2>
 <ul>
     {% for member in members %}
@@ -16,79 +17,83 @@
 <div>
     {% for message in messages %}
         <p><strong>{{ message.user.username }}:</strong> {{ message.content }}</p>
+        {% if message.image %}
+            <img src="{{ message.image.url }}" alt="Image" width="200">
+        {% endif %}
+        {% if message.voice %}
+            <audio controls>
+                <source src="{{ message.voice.url }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        {% endif %}
     {% endfor %}
 </div>
 
 <h2>Send a Message</h2>
-<form method="post">
+<form id="messageForm" method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    {{ form.as_p }}
+    {{ form.content }}
+    {{ form.image }}
+    <input type="file" id="voiceInput" name="voice" accept="audio/*" capture>
     <button type="submit">Send</button>
 </form>
+<button id="startRecording">Start Recording</button>
+<button id="stopRecording" disabled>Stop Recording</button>
+{% else %}
+<p>You are not a member of this group.</p>
+<form method="post" action="{% url 'join_group' group.id %}">
+    {% csrf_token %}
+    <button type="submit">Join Group</button>
+</form>
+{% endif %}
 
+
+
+
+
+
+
+<!-- javascrip for recording voice messege-->
 <script>
-    const groupID = "{{ group.id }}";
-    const chatSocket = new WebSocket(
-        'ws://' + window.location.host + '/ws/chat/' + groupID + '/'
-    );
-
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        const message = data.message;
-        const username = data.username;
-        const messageType = data.message_type;
-
-        const chatLog = document.getElementById('chat-log');
-        const messageElement = document.createElement('div');
-        
-        if (messageType === 'text') {
-            messageElement.innerHTML = `<strong>${username}:</strong> ${message}`;
-        } else if (messageType === 'image') {
-            messageElement.innerHTML = `<strong>${username}:</strong> <img src="${message}" alt="Image" width="200">`;
-        } else if (messageType === 'audio') {
-            messageElement.innerHTML = `<strong>${username}:</strong> <audio controls><source src="${message}" type="audio/mpeg">Your browser does not support the audio element.</audio>`;
-        }
-
-        chatLog.appendChild(messageElement);
-    };
-
-    chatSocket.onclose = function(e) {
-        console.error('Chat socket closed unexpectedly');
-    };
-
-    document.getElementById('chat-message-form').onsubmit = function(e) {
-        e.preventDefault();
-        const messageInput = document.getElementById('chat-message-input');
-        const fileInput = document.getElementById('chat-file-input');
-        const message = messageInput.value;
-        const file = fileInput.files[0];
-
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const dataURL = e.target.result;
-                if (file.type.startsWith('image/')) {
-                    chatSocket.send(JSON.stringify({
-                        'image': dataURL,
-                        'username': "{{ request.user.username }}"
-                    }));
-                } else if (file.type.startsWith('audio/')) {
-                    chatSocket.send(JSON.stringify({
-                        'audio': dataURL,
-                        'username': "{{ request.user.username }}"
-                    }));
+    document.addEventListener('DOMContentLoaded', function() {
+        let mediaRecorder;
+        let recordedChunks = [];
+    
+        const startRecordingButton = document.getElementById('startRecording');
+        const stopRecordingButton = document.getElementById('stopRecording');
+        const voiceInput = document.getElementById('voiceInput');
+    
+        startRecordingButton.addEventListener('click', async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
                 }
             };
-            reader.readAsDataURL(file);
-        } else {
-            chatSocket.send(JSON.stringify({
-                'message': message,
-                'username': "{{ request.user.username }}"
-            }));
-        }
-
-        messageInput.value = '';
-        fileInput.value = '';
-    };
-</script>
+    
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(recordedChunks, { type: 'audio/mpeg' });
+                const audioFile = new File([audioBlob], 'recording.mp3', { type: 'audio/mpeg' });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(audioFile);
+                voiceInput.files = dataTransfer.files;
+    
+                // Reset recorded chunks for the next recording
+                recordedChunks = [];
+            };
+    
+            mediaRecorder.start();
+            startRecordingButton.disabled = true;
+            stopRecordingButton.disabled = false;
+        });
+    
+        stopRecordingButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            startRecordingButton.disabled = false;
+            stopRecordingButton.disabled = true;
+        });
+    });
+    </script>
 {% endblock %}

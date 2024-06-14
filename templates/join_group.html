@@ -1,0 +1,13 @@
+<!-- messaging/templates/messaging/join_group.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>{{ group.name }}</h1>
+<p>{{ group.description }}</p>
+
+<p>You are not a member of this group yet.</p>
+<form method="post" action="{% url 'join_group' group.id %}">
+    {% csrf_token %}
+    <button type="submit">Join Group</button>
+</form>
+{% endblock %}

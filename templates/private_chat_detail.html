@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Private Chat</h2>
+<div id="chat-log">
+    {% for message in messages %}
+        <p><strong>{{ message.sender }}:</strong> {{ message.content }}</p>
+    {% endfor %}
+</div>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Send</button>
+</form>
+{% endblock %}
