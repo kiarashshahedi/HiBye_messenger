@@ -51,3 +51,24 @@ class PrivateMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender} to {self.receiver}: {self.content}"
+    
+    
+    
+class Block(models.Model):
+    blocker = models.ForeignKey(User, related_name='blocker', on_delete=models.CASCADE)
+    blocked = models.ForeignKey(User, related_name='blocked', on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.blocker.username} blocked {self.blocked.username}"
+    
+    
+class Report(models.Model):
+    reporter = models.ForeignKey(User, related_name='reporter', on_delete=models.CASCADE)
+    reported = models.ForeignKey(User, related_name='reported', on_delete=models.CASCADE)
+    reason = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    reviewed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.reporter.username} reported {self.reported.username} - {self.reason[:20]}"

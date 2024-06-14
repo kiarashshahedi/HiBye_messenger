@@ -1,12 +1,9 @@
 {% extends 'base.html' %}
-
 {% block content %}
-<h1>Purchase Coins</h1>
+<h2>Purchase Coins</h2>
 <form method="post">
     {% csrf_token %}
-    <label for="amount">Amount:</label>
-    <input type="number" name="amount" id="amount" min="1" required>
+    {{ form.as_p }}
     <button type="submit">Purchase</button>
 </form>
 {% endblock %}
-

@@ -12,6 +12,7 @@
         <li>{{ member.username }}</li>
     {% endfor %}
 </ul>
+<a href="{% url 'leave_group' group.id %}">Leave Group</a>
 
 <h2>Messages</h2>
 <div>

@@ -2,6 +2,14 @@
 
 {% block content %}
 <h1>Chat with {{ other_participant.username }}</h1>
+<div>
+    {% if is_blocked %}
+        <a href="{% url 'unblock_user' other_participant.id %}">Unblock User</a>
+    {% else %}
+        <a href="{% url 'block_user' other_participant.id %}">Block User</a>
+        <a href="{% url 'report_user' other_participant.id %}">Report User</a>
+    {% endif %}
+</div>
 
 <div>
     {% for message in messages %}

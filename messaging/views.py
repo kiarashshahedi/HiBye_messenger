@@ -1,8 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Group, Message, PrivateChatRequest, PrivateChat
+from .models import Group, Message, PrivateChatRequest, PrivateChat, Block
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from .forms import GroupForm, MessageForm, PrivateMessageForm
+from .forms import GroupForm, MessageForm, PrivateMessageForm, ReportForm
 from django.contrib import messages
 
 # API
@@ -110,7 +110,15 @@ def join_group(request, group_id):
         messages.error(request, "You do not have enough coins to join this group.")
         return redirect('groups')
     
-    
+@login_required
+def leave_group(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    if request.user in group.members.all():
+        group.members.remove(request.user)
+        messages.success(request, f'You have left the group {group.name}.')
+    else:
+        messages.error(request, 'You are not a member of this group.')
+    return redirect('groups')
     
 '''   Privet chats     '''
 
@@ -136,26 +144,40 @@ def private_chat_detail(request, chat_id):
     if request.user not in chat.participants.all():
         return redirect('private_chat_list')
 
+    other_participant = chat.participants.exclude(id=request.user.id).first()
+    blocked_users = Block.objects.filter(blocker=request.user).values_list('blocked', flat=True)
+
+    if other_participant.id in blocked_users:
+        messages_list = []
+        form = None
+        messages.error(request, "You have blocked this user.")
+        return render(request, 'private_chat_detail.html', {
+            'chat': chat,
+            'messages_list': messages_list,
+            'form': form,
+            'other_participant': other_participant,
+            'is_blocked': True,
+        })
+
     if request.method == 'POST':
         form = PrivateMessageForm(request.POST, request.FILES)
         if form.is_valid():
             message = form.save(commit=False)
             message.sender = request.user
             message.chat = chat
-            message.receiver = chat.participants.exclude(id=request.user.id).first()
+            message.receiver = other_participant
             message.save()
             return redirect('private_chat_detail', chat_id=chat.id)
     else:
         form = PrivateMessageForm()
 
-    messages = chat.messages.order_by('timestamp')
-    other_participant = chat.participants.exclude(id=request.user.id).first()
-
+    messages_list = chat.messages.order_by('timestamp')
     return render(request, 'private_chat_detail.html', {
         'chat': chat,
-        'messages': messages,
+        'messages_list': messages_list,
         'form': form,
         'other_participant': other_participant,
+        'is_blocked': False,
     })
 
 
@@ -235,3 +257,39 @@ def decline_request(request, request_id):
     chat_request.status = 'declined'
     chat_request.save()
     return redirect('private_chat_requests')
+
+
+
+
+@login_required
+def block_user(request, user_id):
+    blocked_user = get_object_or_404(User, id=user_id)
+    Block.objects.get_or_create(blocker=request.user, blocked=blocked_user)
+    messages.success(request, f'You have blocked {blocked_user.username}.')
+    return redirect('private_chat_list')
+
+
+@login_required
+def unblock_user(request, user_id):
+    blocked_user = get_object_or_404(User, id=user_id)
+    Block.objects.filter(blocker=request.user, blocked=blocked_user).delete()
+    messages.success(request, f'You have unblocked {blocked_user.username}.')
+    return redirect('private_chat_list')
+
+
+
+@login_required
+def report_user(request, user_id):
+    reported_user = get_object_or_404(User, id=user_id)
+    if request.method == 'POST':
+        form = ReportForm(request.POST)
+        if form.is_valid():
+            report = form.save(commit=False)
+            report.reporter = request.user
+            report.reported = reported_user
+            report.save()
+            messages.success(request, f'You have reported {reported_user.username}.')
+            return redirect('private_chat_list')
+    else:
+        form = ReportForm()
+    return render(request, 'report_user.html', {'form': form, 'reported_user': reported_user})
